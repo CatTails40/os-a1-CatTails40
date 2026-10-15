@@ -60,6 +60,11 @@ void            ireclaim(int);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
+uint64 freemem_count(void);
+uint64 nproc_count(void);
+uint64 nopenfile_count(void);
+uint64 sys_getprocs(void);
+int getprocs(uint64 addr, int max);
 
 // log.c
 void            initlog(int, struct superblock*);

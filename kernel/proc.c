@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "uproc.h"
 
 struct cpu cpus[NCPU];
 
@@ -125,6 +126,8 @@ found:
   p->pid = allocpid();
   p->state = USED;
 
+  p->tracemask = 0;
+
   // Allocate a trapframe page.
   if ((p->trapframe = (struct trapframe *)kalloc()) == 0) {
     freeproc(p);
@@ -168,6 +171,7 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  p->tracemask = 0;
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -280,6 +284,7 @@ kfork(void)
 
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
+  np->tracemask = p->tracemask;
 
   // increment reference counts on open file descriptors.
   for (i = 0; i < NOFILE; i++)
@@ -700,4 +705,61 @@ procdump(void)
     printk("%d %s %s", p->pid, state, p->name);
     printk("\n");
   }
+}
+
+uint64
+nproc_count(void)
+{
+  uint64 count = 0;
+  struct proc *p;
+
+  for (p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if (p->state != UNUSED)
+      count++;
+    release(&p->lock);
+  }
+
+  return count;
+}
+
+int
+getprocs(uint64 addr, int max)
+{
+  int count = 0;
+  struct proc *p;
+  struct proc *curproc = myproc();
+  struct uproc up;
+
+  if (max < 0)
+    return -1;
+
+  for (p = proc; p < &proc[NPROC] && count < max; p++) {
+    acquire(&wait_lock);
+    acquire(&p->lock);
+
+    if (p->state == UNUSED) {
+      release(&p->lock);
+      release(&wait_lock);
+      continue;
+    }
+
+    up.pid = p->pid;
+    up.ppid = p->parent ? p->parent->pid : 0;
+    up.state = p->state;
+    up.sz = p->sz;
+    safestrcpy(up.name, p->name, sizeof(up.name));
+
+    release(&p->lock);
+    release(&wait_lock);
+
+    if (copyout(curproc->pagetable, curproc->sz,
+                addr + count * sizeof(up),
+                (char *)&up, sizeof(up)) < 0)
+      return -1;
+
+    count++;
+  }
+
+  return count;
 }

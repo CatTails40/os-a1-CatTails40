@@ -141,6 +141,7 @@ UPROGS=\
 	$U/_mkdir\
 	$U/_rm\
 	$U/_sh\
+        $U/_sleep\
 	$U/_stressfs\
 	$U/_usertests\
 	$U/_grind\
@@ -150,6 +151,12 @@ UPROGS=\
 	$U/_forphan\
 	$U/_dorphan\
 	$U/_sync\
+	$U/_find\
+	$U/_xargs\
+	$U/_trace\
+	$U/_sysinfotest\
+	$U/_ps\
+	$U/_getprocstest\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
